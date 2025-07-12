@@ -2,6 +2,7 @@ import argparse
 import requests
 import sys
 import json
+import time
 
 # Configuration
 API_BASE_URL = "http://localhost:3000"  #  backend URL
@@ -36,6 +37,25 @@ def check_status(args):
         print("Error checking job status:", e)
         sys.exit(1)
 
+def poll_job(args):
+    print(f"Polling job {args.job_id} until completion...")
+    while True:
+        try:
+            response = requests.get(f"{API_BASE_URL}/jobs/{args.job_id}")
+            response.raise_for_status()
+            job = response.json()
+            status = job.get("status")
+            print(f"Current status: {status}")
+            if status in ("completed", "failed"):
+                print(f"Job finished with status: {status}")
+                if status == "failed":
+                    sys.exit(1)
+                break
+        except requests.RequestException as e:
+            print("Error polling job:", e)
+            sys.exit(1)
+        time.sleep(3)
+
 def main():
     parser = argparse.ArgumentParser(prog="qgjob", description="Qualgent Job CLI Tool")
     subparsers = parser.add_subparsers(title="commands", dest="command")
@@ -53,6 +73,11 @@ def main():
     status_parser = subparsers.add_parser("status", help="Check the status of a submitted job")
     status_parser.add_argument("--job-id", required=True, help="Job ID to check status for")
     status_parser.set_defaults(func=check_status)
+
+    # Polling
+    poll_parser = subparsers.add_parser("poll", help="Poll until job completion")
+    poll_parser.add_argument("--job-id", required=True)
+    poll_parser.set_defaults(func=poll_job)
 
     args = parser.parse_args()
 
