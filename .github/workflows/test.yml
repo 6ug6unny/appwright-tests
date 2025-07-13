@@ -12,5 +12,8 @@ jobs:
         run: |
           JOB_ID=$(python qgjob.py submit --org-id=qualgent --app-version-id=xyz123 --test=tests/onboarding.spec.js --target=emulator | grep 'Job ID:' | awk '{print $3}')
           echo "JOB_ID=$JOB_ID" >> $GITHUB_ENV
+      - name: Show captured JOB_ID
+        run: echo "Captured JOB_ID=${{ env.JOB_ID }}"
       - name: Poll for completion
         run: python qgjob.py poll --job-id=${{ env.JOB_ID }}
+
