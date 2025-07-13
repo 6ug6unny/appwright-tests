@@ -5,15 +5,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
       - name: Install Python dependencies
         run: pip install requests
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Start backend server
+        run: |
+          nohup node server.js &
+          sleep 5
+
+      - name: Debug show CLI help
+        run: python qgjob.py --help
+
       - name: Submit test job
         id: submit
         run: |
           JOB_ID=$(python qgjob.py submit --org-id=qualgent --app-version-id=xyz123 --test=tests/onboarding.spec.js --target=emulator | grep 'Job ID:' | awk '{print $3}')
           echo "JOB_ID=$JOB_ID" >> $GITHUB_ENV
+
       - name: Show captured JOB_ID
         run: echo "Captured JOB_ID=${{ env.JOB_ID }}"
+
       - name: Poll for completion
         run: python qgjob.py poll --job-id=${{ env.JOB_ID }}
-
