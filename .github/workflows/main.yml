@@ -1,250 +1,106 @@
 name: AppWright Test
-on: [push, pull_request]
+
+on: [push]
 
 jobs:
   run-tests:
     runs-on: ubuntu-latest
-    
-    services:
-      # Start the job server as a service
-      job-server:
-        image: node:18-alpine
-        ports:
-          - 3000:3000
-        options: >-
-          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:3000/jobs || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
-      - name: Set up Node.js for job server
+
+      - name: Set up Node.js (for job server)
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          
+
       - name: Install server dependencies
-        run: |
-          npm init -y
-          npm install express uuid cors
-          
+        run: npm install express uuid cors
+
       - name: Start job server in background
         run: |
           node server.js &
           echo $! > server.pid
-          
+
       - name: Wait for server to be ready
         run: |
           timeout 30 bash -c 'until curl -f http://localhost:3000/jobs; do sleep 1; done'
-          
-      - name: Set up Python for CLI
+      
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-          
+
       - name: Install CLI dependencies
-        run: |
-          pip install requests
-          
-      - name: Make qgjob executable
-        run: |
-          chmod +x qgjob.py
-          
+        run: pip install requests
+
       - name: Submit test jobs
-        id: submit_jobs
+        id: submit
         run: |
-          # Submit multiple test jobs for different targets
-          echo "Submitting onboarding test for emulator..."
-          JOB_ID_1=$(python qgjob.py submit \
+          echo "Submitting onboarding test..."
+          JOB_ID_ONBOARDING=$(python qgjob.py submit \
             --org-id=qualgent \
             --app-version-id=xyz123 \
             --test=tests/onboarding.spec.js \
-            --target=emulator \
-            --priority=high | grep "Job ID:" | cut -d' ' -f3)
-          echo "job_id_1=$JOB_ID_1" >> $GITHUB_OUTPUT
-          
-          echo "Submitting login test for device..."
-          JOB_ID_2=$(python qgjob.py submit \
+            --priority=high \
+            --target=emulator | grep "Job ID:" | awk '{print $3}')
+          echo "job_id_onboarding=$JOB_ID_ONBOARDING" >> $GITHUB_OUTPUT
+
+          echo "Submitting login test..."
+          JOB_ID_LOGIN=$(python qgjob.py submit \
             --org-id=qualgent \
             --app-version-id=xyz123 \
             --test=tests/login.spec.js \
-            --target=device \
-            --priority=normal | grep "Job ID:" | cut -d' ' -f3)
-          echo "job_id_2=$JOB_ID_2" >> $GITHUB_OUTPUT
-          
-          echo "Submitting checkout test for browserstack..."
-          JOB_ID_3=$(python qgjob.py submit \
-            --org-id=qualgent \
-            --app-version-id=xyz123 \
-            --test=tests/checkout.spec.js \
-            --target=browserstack \
-            --priority=normal | grep "Job ID:" | cut -d' ' -f3)
-          echo "job_id_3=$JOB_ID_3" >> $GITHUB_OUTPUT
-          
-          echo "Submitted jobs: $JOB_ID_1, $JOB_ID_2, $JOB_ID_3"
-          
-      - name: Poll for job completion
+            --priority=normal \
+            --target=device | grep "Job ID:" | awk '{print $3}')
+          echo "job_id_login=$JOB_ID_LOGIN" >> $GITHUB_OUTPUT
+
+      - name: Poll for completion
         run: |
-          # Function to poll a single job
-          poll_job() {
-            local job_id=$1
-            local job_name=$2
+          fail=0
+
+          poll() {
+            job_name=$1
+            job_id=$2
+
             echo "Polling $job_name (ID: $job_id)..."
-            
             while true; do
-              status=$(python qgjob.py status --job-id=$job_id | python -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    print(data.get('status', 'unknown'))
-except:
-    print('unknown')
-")
-              
+              status=$(python qgjob.py status --job-id=$job_id | \
+                python -c "import sys, json; print(json.load(sys.stdin).get('status','unknown'))")
               echo "$job_name status: $status"
-              
-              if [ "$status" = "completed" ]; then
-                echo "$job_name completed successfully"
+              if [ "$status" == "completed" ]; then
+                echo "$job_name passed!"
                 return 0
-              elif [ "$status" = "failed" ]; then
-                echo "$job_name failed"
-                return 1
-              elif [ "$status" = "unknown" ]; then
-                echo "Error checking status for $job_name"
+              elif [ "$status" == "failed" ]; then
+                echo "$job_name failed!"
                 return 1
               fi
-              
-              sleep 5
+              sleep 3
             done
           }
-          
-          # Poll all jobs in parallel and collect results
-          poll_job "${{ steps.submit_jobs.outputs.job_id_1 }}" "Onboarding Test" &
+
+          # Poll in parallel
+          poll "Onboarding Test" "${{ steps.submit.outputs.job_id_onboarding }}" &
           PID1=$!
-          
-          poll_job "${{ steps.submit_jobs.outputs.job_id_2 }}" "Login Test" &
+          poll "Login Test" "${{ steps.submit.outputs.job_id_login }}" &
           PID2=$!
-          
-          poll_job "${{ steps.submit_jobs.outputs.job_id_3 }}" "Checkout Test" &
-          PID3=$!
-          
-          # Wait for all jobs and check results
-          EXIT_CODE=0
-          
-          if ! wait $PID1; then
-            echo "Onboarding test failed"
-            EXIT_CODE=1
-          else
-            echo "Onboarding test passed"
-          fi
-          
-          if ! wait $PID2; then
-            echo "Login test failed"
-            EXIT_CODE=1
-          else
-            echo "Login test passed"
-          fi
-          
-          if ! wait $PID3; then
-            echo "Checkout test failed"
-            EXIT_CODE=1
-          else
-            echo "Checkout test passed"
-          fi
-          
-          if [ $EXIT_CODE -ne 0 ]; then
+
+          # Wait and collect results
+          if ! wait $PID1; then fail=1; fi
+          if ! wait $PID2; then fail=1; fi
+
+          if [ $fail -eq 1 ]; then
             echo "One or more tests failed"
             exit 1
           else
             echo "All tests passed"
           fi
-          
-      - name: Get final job statuses
-        if: always()
-        run: |
-          echo "Final job statuses:"
-          if [ -n "${{ steps.submit_jobs.outputs.job_id_1 }}" ]; then
-            echo "Onboarding Test:"
-            python qgjob.py status --job-id=${{ steps.submit_jobs.outputs.job_id_1 }}
-          fi
-          if [ -n "${{ steps.submit_jobs.outputs.job_id_2 }}" ]; then
-            echo "Login Test:"
-            python qgjob.py status --job-id=${{ steps.submit_jobs.outputs.job_id_2 }}
-          fi
-          if [ -n "${{ steps.submit_jobs.outputs.job_id_3 }}" ]; then
-            echo "Checkout Test:"
-            python qgjob.py status --job-id=${{ steps.submit_jobs.outputs.job_id_3 }}
-          fi
-          
+
       - name: Cleanup
         if: always()
         run: |
           if [ -f server.pid ]; then
             kill $(cat server.pid) || true
-            rm server.pid
           fi
 
-  # Alternative job for environments with Docker support
-  run-tests-docker:
-    runs-on: ubuntu-latest
-    if: false  # Set to true to enable this alternative approach
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        
-      - name: Create Docker Compose file
-        run: |
-          cat > docker-compose.yml << 'EOF'
-          version: '3.8'
-          services:
-            job-server:
-              build:
-                context: .
-                dockerfile_inline: |
-                  FROM node:18-alpine
-                  WORKDIR /app
-                  COPY package*.json ./
-                  RUN npm install express uuid cors
-                  COPY server.js .
-                  EXPOSE 3000
-                  CMD ["node", "server.js"]
-              ports:
-                - "3000:3000"
-              healthcheck:
-                test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/jobs"]
-                interval: 10s
-                timeout: 5s
-                retries: 5
-          EOF
-          
-      - name: Start services
-        run: |
-          docker-compose up -d
-          docker-compose exec job-server timeout 30 bash -c 'until wget --no-verbose --tries=1 --spider http://localhost:3000/jobs; do sleep 1; done'
-          
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-          
-      - name: Install dependencies and run tests
-        run: |
-          pip install requests
-          
-          # Submit and poll job
-          JOB_ID=$(python qgjob.py submit \
-            --org-id=qualgent \
-            --app-version-id=xyz123 \
-            --test=tests/onboarding.spec.js \
-            --target=emulator | grep "Job ID:" | cut -d' ' -f3)
-          
-          echo "Submitted job: $JOB_ID"
-          python qgjob.py poll --job-id=$JOB_ID
-          
-      - name: Cleanup
-        if: always()
-        run: docker-compose down
