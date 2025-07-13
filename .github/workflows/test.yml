@@ -9,8 +9,7 @@ jobs:
       - name: Install Python dependencies
         run: pip install requests
 
-      - name: Install Node dependencies
-        run: npm install
+      
 
       - name: Start backend server
         run: |
