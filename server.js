@@ -158,5 +158,5 @@ setInterval(() => {
 }, 2000);
 
 app.listen(PORT, () => {
-  console.log(`🚀 Job API server running at http://localhost:${PORT}`);
+  console.log(` Job API server running at http://localhost:${PORT}`);
 });
