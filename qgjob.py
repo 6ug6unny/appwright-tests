@@ -25,17 +25,6 @@ def submit_job(args):
         print("Error submitting job:", e)
         sys.exit(1)
 
-def check_status(args):
-    job_id = args.job_id
-    try:
-        response = requests.get(f"{API_BASE_URL}/jobs/{job_id}")
-        response.raise_for_status()
-        job_status = response.json()
-        print("Job Status:")
-        print(json.dumps(job_status, indent=2))
-    except requests.RequestException as e:
-        print("Error checking job status:", e)
-        sys.exit(1)
 
 def poll_job(args):
     print(f"Polling job {args.job_id} until completion...")
@@ -55,6 +44,19 @@ def poll_job(args):
             print("Error polling job:", e)
             sys.exit(1)
         time.sleep(3)
+
+        
+def check_status(args):
+    job_id = args.job_id
+    try:
+        response = requests.get(f"{API_BASE_URL}/jobs/{job_id}")
+        response.raise_for_status()
+        job_status = response.json()
+        print("Job Status:")
+        print(json.dumps(job_status, indent=2))
+    except requests.RequestException as e:
+        print("Error checking job status:", e)
+        sys.exit(1)
 
 def main():
     parser = argparse.ArgumentParser(prog="qgjob", description="Qualgent Job CLI Tool")
