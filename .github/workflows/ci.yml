@@ -1,0 +1,40 @@
+name: AppWright Test
+
+on: [push]
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          pip install requests
+
+      - name: Start backend server
+        run: |
+          nohup node server.js &
+          sleep 5  # wait for server to be ready
+
+      - name: Submit test job
+        id: submit_job
+        run: |
+          JOB_ID=$(python qgjob.py submit \
+            --org-id=qualgent \
+            --app-version-id=xyz123 \
+            --test=tests/onboarding.spec.js \
+            --priority=high \
+            --target=emulator | grep "Job ID:" | awk '{print $3}')
+          echo "job_id=$JOB_ID" >> $GITHUB_OUTPUT
+
+      - name: Poll until completion
+        run: |
+          python qgjob.py poll --job-id=${{ steps.submit_job.outputs.job_id }}
