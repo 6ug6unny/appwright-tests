@@ -27,7 +27,8 @@ jobs:
     - name: Start backend server
       run: |
         nohup node server.js > server.log 2>&1 &
-        wait-on http://localhost:3000/health
+        sleep 2
+        curl --fail http://localhost:3000/health || (echo "Server failed to start:" && cat server.log && exit 1)
 
     - name: Submit test job
       id: submit_job
