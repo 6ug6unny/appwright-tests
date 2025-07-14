@@ -7,34 +7,48 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v2
+    - name: Checkout repo
+      uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
 
-      - name: Install dependencies
-        run: |
-          pip install requests
+    - name: Install backend dependencies
+      run: npm install express uuid cors
 
-      - name: Start backend server
-        run: |
-          nohup node server.js &
-          sleep 5  # wait for server to be ready
+    - name: Install wait-on
+      run: npm install -g wait-on
 
-      - name: Submit test job
-        id: submit_job
-        run: |
-          JOB_ID=$(python qgjob.py submit \
-            --org-id=qualgent \
-            --app-version-id=xyz123 \
-            --test=tests/onboarding.spec.js \
-            --priority=high \
-            --target=emulator | grep "Job ID:" | awk '{print $3}')
-          echo "job_id=$JOB_ID" >> $GITHUB_OUTPUT
+    - name: Install Python dependencies
+      run: pip install requests
 
-      - name: Poll until completion
-        run: |
-          python qgjob.py poll --job-id=${{ steps.submit_job.outputs.job_id }}
+    - name: Start backend server
+      run: |
+        nohup node server.js > server.log 2>&1 &
+        wait-on http://localhost:3000/health
+
+    - name: Submit test job
+      id: submit_job
+      run: |
+        JOB_ID=$(python qgjob.py submit \
+          --org-id=qualgent \
+          --app-version-id=xyz123 \
+          --test=tests/onboarding.spec.js \
+          --priority=high \
+          --target=emulator | grep "Job ID:" | awk '{print $3}')
+        if [ -z "$JOB_ID" ]; then
+          echo "Failed to get job ID!"
+          cat server.log
+          exit 1
+        fi
+        echo "job_id=$JOB_ID" >> $GITHUB_OUTPUT
+
+    - name: Poll until completion
+      run: |
+        python qgjob.py poll --job-id=${{ steps.submit_job.outputs.job_id }}
+
+    - name: Show server log on failure
+      if: failure()
+      run: cat server.log
