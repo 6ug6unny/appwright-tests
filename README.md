@@ -5,7 +5,7 @@ A CLI tool and backend service for queuing, grouping, and deploying AppWright te
 ![alt text](image.png)
 
 ## Components
-### 1. qgjob CLI Tool (Python)
+### 1. qgjob CLI Tool (Python)  (qgjob.py)
 
 Purpose: Submit and monitor test jobs
 Commands:
@@ -16,7 +16,7 @@ poll: Poll until job completion
 
 
 
-### 2. Job Server (Node.js)
+### 2. Job Server (Node.js) (server.js)
 
 Purpose: Job orchestration and worker management
 Features:
@@ -29,7 +29,7 @@ Status tracking
 
 
 
-### 3. GitHub Actions Integration
+### 3. GitHub Actions Integration (ci.yml)
 
 Purpose: CI/CD integration for automated testing
 Features:
@@ -159,7 +159,7 @@ python qgjob.py poll --job-id=<returned-job-id>
 4. Job status changes: queued → running → completed/failed
 5. Failed jobs are retried once
 
-## GitHub Actions Integration
+## GitHub Actions Integration 
 The workflow automatically:
 
 1. Starts the job server
