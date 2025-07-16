@@ -87,11 +87,12 @@ bashcurl http://localhost:3000/health
 - **Retry Logic:** Failed jobs are retried once before being marked as failed
 
 ### Scheduling Algorithm
-javascript
+
+```javascript
 // Simplified scheduling logic
 for (const worker of workerPool) {
   if (worker.busy) continue;
-  
+
   // Find queued job for this worker's target
   for (const app_version_id in queueByAppVersion) {
     const queue = queueByAppVersion[app_version_id];
@@ -102,7 +103,7 @@ for (const worker of workerPool) {
     // Assign job to worker...
   }
 }
-
+```
 
 ## Usage
 ### CLI Commands
@@ -125,10 +126,10 @@ python qgjob.py poll --job-id=abc456
 
 ### API Endpoints
 
-POST /jobs - Submit a new job
-GET /jobs/:job_id - Get job status
-GET /jobs - List all jobs
-GET /health - Health check
+- POST /jobs - Submit a new job
+- GET /jobs/:job_id - Get job status
+- GET /jobs - List all jobs
+- GET /health - Health check
 
 ## End-to-End Test Submission
 ### Manual Test Flow
