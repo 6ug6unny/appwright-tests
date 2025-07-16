@@ -1,29 +1,6 @@
 # QGJob - AppWright Test Queue and Deployment CLI
 A CLI tool and backend service for queuing, grouping, and deploying AppWright tests across local devices, emulators, and BrowserStack with GitHub Actions integration.
 ## Architecture Overview
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   GitHub Actions │    │    qgjob CLI     │    │   Job Server    │
-│    Workflow      │───▶│    (Python)      │───▶│   (Node.js)     │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                                         │
-                                                         ▼
-                                                ┌─────────────────┐
-                                                │   In-Memory     │
-                                                │   Job Store     │
-                                                │  & App Version  │
-                                                │   Grouping      │
-                                                └─────────────────┘
-                                                         │
-                                                         ▼
-                                                ┌─────────────────┐
-                                                │  Worker Pool    │
-                                                │  - Emulator     │
-                                                │  - Device       │
-                                                │  - BrowserStack │
-                                                └─────────────────┘
-
-
-
 
 ![alt text](image.png)
 
