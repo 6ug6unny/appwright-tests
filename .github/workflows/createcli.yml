@@ -1,0 +1,56 @@
+name: CI Job CLI Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-job-cli:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Install server dependencies
+      run: npm install
+      working-directory: . # adjust if server.js is in a subfolder
+
+    - name: Start server in background
+      run: |
+        nohup node server.js > server.log 2>&1 &
+        sleep 5  # wait a bit for server to be ready
+        curl --fail http://localhost:3000/jobs || (echo "Server failed to start" && cat server.log && exit 1)
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install Python dependencies
+      run: pip install requests
+
+    - name: Run qgjob.py to submit a job
+      run: |
+        python qgjob.py submit \
+          --org-id org1 \
+          --app-version-id v1 \
+          --test test/path/to/test \
+          --priority normal \
+          --target emulator
+
+    - name: List jobs via API
+      run: curl http://localhost:3000/jobs
+
+    # Optionally, run status or poll
+    - name: Run qgjob.py to check status
+      run: |
+        # Replace JOB_ID with actual ID if you capture it from previous step
+        python qgjob.py status --job-id some_job_id
