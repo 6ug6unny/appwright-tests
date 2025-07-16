@@ -183,3 +183,6 @@ The workflow automatically:
 - Implement distributed worker management
 - Add metrics and monitoring
 - Implement job persistence and crash recovery
+
+## Logs
+Logging is added to the Github ACtion workflow.
