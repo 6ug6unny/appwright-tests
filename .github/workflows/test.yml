@@ -1,0 +1,62 @@
+name: AppWright Test
+
+on: [push]
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Node.js for backend
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install backend dependencies
+        run: npm install express uuid cors
+
+      - name: Start job server in background
+        run: |
+          node server.js &
+          echo $! > server.pid
+
+      - name: Wait for server to be ready
+        run: |
+          echo "Waiting for server to be ready..."
+          timeout 30 bash -c 'until curl -f http://localhost:3000/jobs; do sleep 1; done'
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Python dependencies
+        run: pip install requests
+
+      - name: Make qgjob.py executable
+        run: chmod +x qgjob.py
+
+      - name: Submit test job
+        id: submit
+        run: |
+          JOB_ID=$(python qgjob.py submit \
+            --org-id=qualgent \
+            --app-version-id=xyz123 \
+            --test=tests/onboarding.spec.js \
+            --target=emulator | grep 'Job ID:' | awk '{print $3}')
+          echo "JOB_ID=$JOB_ID"
+          echo "JOB_ID=$JOB_ID" >> $GITHUB_ENV
+
+      - name: Poll for completion
+        run: python qgjob.py poll --job-id=${{ env.JOB_ID }}
+
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "Stopping job server..."
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) || true
+            rm server.pid
+          fi
