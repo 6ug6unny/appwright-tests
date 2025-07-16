@@ -7,69 +7,74 @@ A CLI tool and backend service for queuing, grouping, and deploying AppWright te
 ## Components
 ### 1. qgjob CLI Tool (Python)  (qgjob.py)
 
-Purpose: Submit and monitor test jobs
-Commands:
+**Purpose:** Submit and monitor test jobs
+**Commands:**
 
-submit: Submit a new test job
-status: Check job status
-poll: Poll until job completion
+- **submit:** Submit a new test job
+- **status:** Check job status
+- **poll:** Poll until job completion
 
 
 
 ### 2. Job Server (Node.js) (server.js)
 
-Purpose: Job orchestration and worker management
-Features:
+**Purpose:** Job orchestration and worker management
+**Features:**
 
-Job queueing and storage
-App version grouping
-Worker assignment
-Retry logic
-Status tracking
+- Job queueing and storage
+- App version grouping
+- Worker assignment
+- Retry logic
+- Status tracking
 
 
 
 ### 3. GitHub Actions Integration (ci.yml)
 
-Purpose: CI/CD integration for automated testing
-Features:
+**Purpose:** CI/CD integration for automated testing
+**Features:**
 
-Automatic job submission
-Health checks
-Build failure on test failure
+- Automatic job submission
+- Health checks
+- Build failure on test failure
 
 
 
 ## Setup Instructions
 ### Prerequisites
 
-Node.js (v18+)
-Python (v3.10+)
-npm
+- Node.js (v18+)
+- Python (v3.10+)
+- npm
 
 ### Local Development Setup
 
 1. **Clone the repository**
-bash
+```
   git clone <repository-url>
   cd qgjob
+```
 
 2. **Install server dependencies**
-bash
+```
   npm install express uuid cors
+```
 
 3. **Install Python dependencies**
-bash
+```
   pip install requests
+```
 
 4. **Start the job server**
-bash
+```
   node server.js
+```
 The server will start on http://localhost:3000
 
 5. **Verify server is running**
-bashcurl http://localhost:3000/health
-
+```
+curl http://localhost:3000/health
+```
 
 ## How Grouping/Scheduling Works
 ### Job Grouping by App Version
@@ -117,13 +122,14 @@ python qgjob.py submit \
   --target=emulator
 
 #### Check Job Status
-bash
+```
 python qgjob.py status --job-id=abc456
+```
 
 #### Poll Until Completion
-bash
+```
 python qgjob.py poll --job-id=abc456
-
+```
 ### API Endpoints
 
 - POST /jobs - Submit a new job
@@ -135,21 +141,21 @@ python qgjob.py poll --job-id=abc456
 ### Manual Test Flow
 
 1. **Start the server**
-bash
+```
 node server.js
-
+```
 2. **Submit a job**
-bash
+```
 python qgjob.py submit --org-id=testorg --app-version-id=v1.0 --test=tests/login.spec.js --target=emulator
-
+```
 3. **Check status**
-bash
+```
 python qgjob.py status --job-id=<returned-job-id>
-
+```
 4. **Poll for completion**
-bash
+```
 python qgjob.py poll --job-id=<returned-job-id>
-
+```
 
 ### Expected Flow
 
